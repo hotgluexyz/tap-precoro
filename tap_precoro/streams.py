@@ -56,7 +56,7 @@ class InvoicesStream(PrecoroStream):
         data = extract_jsonpath(self.records_jsonpath, input=response.json())
         for row in data:
             # Only download approved invoices
-            if row["statusString"] == "status.approved":
+            if row["status"] == 5:
                 yield row
 
 
