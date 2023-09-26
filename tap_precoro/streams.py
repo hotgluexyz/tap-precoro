@@ -80,7 +80,7 @@ class InvoiceDetailsStream(PrecoroStream):
         th.Property("issueDate", th.DateTimeType),
         th.Property("updateExchangeRateDate", th.DateTimeType),
         th.Property("sumPaid", th.StringType),
-        th.Property("sumPaidInCompanyCurrency", th.StringType),
+        th.Property("sumPaidInCompanyCurrency", th.CustomType({"type": ["number", "string"]})),
         th.Property("sum", th.CustomType({"type": ["number", "string"]})),
         th.Property("netSum", th.CustomType({"type": ["number", "string"]})),
         th.Property(
@@ -120,7 +120,7 @@ class InvoiceDetailsStream(PrecoroStream):
             th.CustomType({"type": ["number", "string"]}),
         ),
         th.Property("isRequiredTaxesForItems", th.BooleanType),
-        th.Property("approvingWay", th.CustomType({"type": ["object", "string"]})),
+        th.Property("approvingWay", th.CustomType({"type": ["object", "array", "string"]})),
         th.Property("location", th.CustomType({"type": ["object", "string"]})),
         th.Property("supplier", th.CustomType({"type": ["object", "string"]})),
         th.Property("budget", th.CustomType({"type": ["array", "object"]})),
