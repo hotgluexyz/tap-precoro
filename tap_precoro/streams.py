@@ -54,9 +54,13 @@ class InvoicesStream(PrecoroStream):
 
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
         data = extract_jsonpath(self.records_jsonpath, input=response.json())
-        for row in data:
-            # Only download approved invoices
-            if row["status"] == 5:
+        # only fetch approved invoices as default
+        if not self.config.get("all_invoices"):
+            for row in data:
+                if row["status"] == 5:
+                    yield row
+        else:
+            for row in data:
                 yield row
 
 
