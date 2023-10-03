@@ -57,7 +57,7 @@ class InvoicesStream(PrecoroStream):
         # only fetch approved invoices as default
         if not self.config.get("all_invoices"):
             for row in data:
-                if row["status"] == 5:
+                if row["status"] == 2:
                     yield row
         else:
             for row in data:
@@ -156,8 +156,7 @@ class SuppliersStream(PrecoroStream):
     name = "suppliers"
     path = "/suppliers"
     primary_keys = ["id"]
-    # This stream supports replication but there is no updated key
-    replication_key = None
+    replication_key = "updateDate"
     schema = th.PropertiesList(
         th.Property("id", th.NumberType),
         th.Property("name", th.StringType),
@@ -166,9 +165,10 @@ class SuppliersStream(PrecoroStream):
         th.Property("phone", th.StringType),
         th.Property("city", th.StringType),
         th.Property("state", th.StringType),
-        th.Property("postalCode", th.StringType),
+        th.Property("country", th.StringType),
         th.Property("postalCode", th.StringType),
         th.Property("createDate", th.DateTimeType),
+        th.Property("updateDate", th.DateTimeType),
     ).to_dict()
 
 
@@ -199,6 +199,7 @@ class ItemsStream(PrecoroStream):
         th.Property("bundleItems", th.CustomType({"type": ["object", "array"]})),
         th.Property("groupItems", th.CustomType({"type": ["object", "array"]})),
         th.Property("typeString", th.StringType),
+        th.Property("type", th.IntegerType),
         th.Property("externalId", th.StringType),
         th.Property("xeroId", th.StringType),
         th.Property("createDate", th.DateTimeType),
