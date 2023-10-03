@@ -8,6 +8,7 @@ from memoization import cached
 
 from singer_sdk.streams import RESTStream
 from singer_sdk.authenticators import APIKeyAuthenticator
+from pendulum import parse
 
 
 class PrecoroStream(RESTStream):
@@ -56,6 +57,13 @@ class PrecoroStream(RESTStream):
             return None
 
         return self.page
+    
+    def get_starting_time(self, context):
+        start_date = self.config.get("start_date")
+        if start_date:
+            start_date = parse(self.config.get("start_date"))
+        rep_key = self.get_starting_timestamp(context)
+        return rep_key or start_date
 
     def get_url_params(
         self, context: Optional[dict], next_page_token: Optional[Any]
@@ -65,8 +73,7 @@ class PrecoroStream(RESTStream):
         if next_page_token:
             params["page"] = next_page_token
 
-        # Enable replication logic as per requirement or request
-        # if self.replication_key:
-        #     params["order_by"] = self.replication_key
-
+        start_date = self.get_starting_time(context)
+        if self.replication_key and start_date:
+            params["modifiedSince"] = start_date.strftime('%Y-%m-%dT%H:%M:%S') 
         return params
