@@ -144,7 +144,7 @@ class InvoiceDetailsStream(PrecoroStream):
             "dataDocumentCustomFields", th.CustomType({"type": ["object", "array"]})
         ),
         th.Property("attachments", th.CustomType({"type": ["object", "array"]})),
-        th.Property("allocatedInvoice", th.CustomType({"type": ["array", "array"]})),
+        th.Property("allocatedInvoice", th.CustomType({"type": ["object", "array"]})),
         th.Property("contracts", th.CustomType({"type": ["object", "array"]})),
         th.Property("isBudgetOverLimit", th.BooleanType),
     ).to_dict()
