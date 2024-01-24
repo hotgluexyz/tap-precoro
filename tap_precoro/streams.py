@@ -225,14 +225,14 @@ class SuppliersStream(PrecoroStream):
         th.Property("approvalSteps", th.ObjectType(
            th.Property("data", th.ArrayType(th.CustomType({"type": ["object", "array"]}))), 
         )),
-        th.Property("approvingWay", th.ArrayType(th.CustomType({"type": ["object", "array"]}))),
+        th.Property("approvingWay", th.CustomType({"type": ["object", "array", "string"]})),
         th.Property("contacts", th.ObjectType(
            th.Property("data", th.ArrayType(th.CustomType({"type": ["object", "array"]}))), 
         )),
         th.Property("marketContacts", th.ObjectType(
            th.Property("data", th.ArrayType(th.CustomType({"type": ["object", "array"]}))), 
         )),
-        th.Property("supplierRegistration", th.ArrayType(th.CustomType({"type": ["object", "array"]}))),
+        th.Property("supplierRegistration", th.CustomType({"type": ["object", "array", "string"]})),
         th.Property("approvalInfo", th.ObjectType(
             th.Property("canApprove", th.BooleanType),
             th.Property("canReject", th.BooleanType),
