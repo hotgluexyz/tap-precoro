@@ -15,7 +15,13 @@ class PrecoroStream(RESTStream):
     """Precoro stream class."""
 
     page = 1
-    url_base = "https://api.precoro.com"
+
+    @property
+    def url_base(self) -> str:
+        url = self.config.get("base_url", "https://api.precoro.com")
+        if not url.startswith("https://"):
+            url = f"https://{url}"
+        return url
 
     records_jsonpath = "$.data[*]"
     next_page_token_jsonpath = "$.next_page"  # Or override `get_next_page_token`.
