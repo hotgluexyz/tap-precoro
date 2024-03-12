@@ -196,7 +196,7 @@ class SuppliersStream(PrecoroStream):
         th.Property("enable", th.BooleanType),
         th.Property("isMarketUpdatable", th.BooleanType),
         th.Property("qboId", th.StringType),
-        th.Property("externalId", th.StringType),
+        th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
         th.Property("xeroId", th.StringType),
         th.Property("marketSupplier", th.ObjectType(
             th.Property("id", th.StringType),    
