@@ -46,22 +46,46 @@ class InvoicesStream(PrecoroStream):
         th.Property("statusString", th.StringType),
     ).to_dict()
 
+
+    def get_url_params(self, context, next_page_token):
+        params = super().get_url_params(context, next_page_token)
+
+        # status mapp
+        invoice_status = {
+            "open": 0,
+            "pending": 1,
+            "approved": 2,
+            "denied": 3,
+            "partly_paid": 4,
+            "paid": 5,
+            "awaiting_confirmation": 6,
+            "on_revise": 7,
+            "canceled": 8,
+            "pending_receipt": 9 
+        }
+        statuses = self.config.get("statuses")
+
+        # Fetch only approved invoices by default
+        params["status[]"] = 2
+        # Fetch all invoices if flag all_invoices
+        if self.config.get("all_invoices"):
+            self.logger.info("Flag all_invoices on, fetching all status invoices.")
+            del params["status[]"]
+        # Fetch invoices with statuses in config statuses flag
+        elif statuses:
+            statuses = statuses.split(",")
+            statuses = [status.strip() for status in statuses]
+            self.logger.info(f"Status flag found in config file fetching invoices with status in {statuses}.")
+            statuses = [invoice_status.get(status.lower()) for status in statuses if status in invoice_status]
+            params["status[]"] = statuses
+
+        return params
+
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
         return {
             "invoice_id": record["idn"],
         }
-
-    def parse_response(self, response: requests.Response) -> Iterable[dict]:
-        data = extract_jsonpath(self.records_jsonpath, input=response.json())
-        # only fetch approved invoices as default
-        if not self.config.get("all_invoices"):
-            for row in data:
-                if row["status"] == 2:
-                    yield row
-        else:
-            for row in data:
-                yield row
 
 
 class InvoiceDetailsStream(PrecoroStream):
