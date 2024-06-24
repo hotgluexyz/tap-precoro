@@ -101,6 +101,7 @@ class InvoiceDetailsStream(PrecoroStream):
         th.Property("id", th.NumberType),
         th.Property("idn", th.StringType),
         th.Property("status", th.NumberType),
+        th.Property("approvalDate", th.DateTimeType),
         th.Property("customName", th.StringType),
         th.Property("updateDate", th.DateTimeType),
         th.Property("createDate", th.DateTimeType),
