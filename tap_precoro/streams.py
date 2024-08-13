@@ -264,6 +264,29 @@ class SuppliersStream(PrecoroStream):
         )),
     ).to_dict()
 
+    def get_url_params(self, context, next_page_token):
+        params = super().get_url_params(context, next_page_token)
+        supplier_status = self.config.get("supplier_status")
+
+        if supplier_status:
+            # status map
+            sup_status_map = {"approved": 2, "pending": 1, "rejected": 3}
+
+            # Fetch invoices with statuses in config statuses flag
+            statuses = supplier_status.split(",")
+            statuses = [status.strip() for status in statuses]
+            self.logger.info(
+                f"Status flag found in config file fetching suppliers with status in {statuses}."
+            )
+            statuses = [
+                sup_status_map.get(status.lower())
+                for status in statuses
+                if status in sup_status_map
+            ]
+            params["status[]"] = statuses
+
+        return params
+
 
 class ItemsStream(PrecoroStream):
     """Define custom stream."""
