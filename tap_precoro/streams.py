@@ -31,13 +31,8 @@ class TaxesStream(PrecoroStream):
     ).to_dict()
 
 
-class InvoicesStream(PrecoroStream):
-    """Define custom stream."""
+class TransactionsStream(PrecoroStream):
 
-    name = "invoices"
-    path = "/invoices"
-    primary_keys = ["id"]
-    replication_key = "updateDate"
     schema = th.PropertiesList(
         th.Property("id", th.NumberType),
         th.Property("idn", th.StringType),
@@ -80,6 +75,15 @@ class InvoicesStream(PrecoroStream):
             params["status[]"] = statuses
 
         return params
+
+
+class InvoicesStream(TransactionsStream):
+    """Define custom stream."""
+
+    name = "invoices"
+    path = "/invoices"
+    primary_keys = ["id"]
+    replication_key = "updateDate"
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
@@ -320,4 +324,75 @@ class ItemsStream(PrecoroStream):
         th.Property("xeroId", th.StringType),
         th.Property("createDate", th.DateTimeType),
         th.Property("updateDate", th.DateTimeType),
+    ).to_dict()
+
+
+class ExpensesStream(TransactionsStream):
+    """Define custom stream."""
+
+    name = "expenses"
+    path = "/expenses"
+    primary_keys = ["id"]
+    replication_key = "updateDate"
+
+    def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
+        """Return a context dictionary for child streams."""
+        return {
+            "expense_idn": record["idn"],
+        }
+
+
+class ExpensesDetailsStream(PrecoroStream):
+    """Define custom stream."""
+
+    name = "expenses_details"
+    path = "/expenses/{expense_idn}"
+    primary_keys = ["id"]
+    records_jsonpath = "$[*]"
+    parent_stream_type = ExpensesStream
+    schema = th.PropertiesList(
+        th.Property("id", th.IntegerType),
+        th.Property("idn", th.StringType),
+        th.Property("customName", th.StringType),
+        th.Property("updateDate", th.DateTimeType),
+        th.Property("createDate", th.DateTimeType),
+        th.Property("requiredDate", th.DateTimeType),
+        th.Property("issueDate", th.DateTimeType),
+        th.Property("approvalDate", th.DateTimeType),
+        th.Property("sumPaid", th.NumberType),
+        th.Property("sumPaidInCompanyCurrency", th.NumberType),
+        th.Property("sum", th.NumberType),
+        th.Property("netSum", th.NumberType),
+        th.Property(
+            "sumInCompanyCurrency", th.NumberType),
+        th.Property(
+            "netSumInCompanyCurrency", th.NumberType),
+        th.Property("withholdingTaxSum", th.NumberType),
+        th.Property("currency", th.StringType),
+        th.Property("precisionData", th.CustomType({"type": ["object", "string"]})),
+        th.Property("note", th.StringType),
+        th.Property("exchangeRate", th.CustomType({"type": ["object", "array"]})),
+        th.Property("status", th.IntegerType),
+        th.Property("expenseNumber", th.StringType),
+        th.Property("budgetedSum", th.NumberType),
+        th.Property("usedTaxPercentInBudget", th.StringType),
+        th.Property("allDocumentCustomFieldOptionsIds", th.StringType),
+        th.Property("qboId", th.StringType),
+        th.Property("approvingWay", th.CustomType({"type": ["object", "array", "string"]})),
+        th.Property("location", th.CustomType({"type": ["object", "string"]})),
+        th.Property("budget", th.CustomType({"type": ["array", "object"]})),
+        th.Property("creator", th.CustomType({"type": ["object", "string"]})),
+        th.Property("lastEditor", th.CustomType({"type": ["object", "string", "array"]})),
+        th.Property("legalEntity", th.CustomType({"type": ["array", "object"]})),
+        th.Property("approvalSteps", th.CustomType({"type": ["object", "array"]})),
+        th.Property("items", th.CustomType({"type": ["object", "array"]})),
+        th.Property("taxes", th.CustomType({"type": ["object", "array"]})),
+        th.Property("comments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("expensePayments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("followers", th.CustomType({"type": ["object", "array"]})),
+        th.Property(
+            "dataDocumentCustomFields", th.CustomType({"type": ["object", "array"]})
+        ),
+        th.Property("attachments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("isBudgetOverLimit", th.BooleanType),
     ).to_dict()
