@@ -5,14 +5,14 @@ from typing import List
 from singer_sdk import Tap, Stream
 from singer_sdk import typing as th  # JSON schema typing helpers
 
-# TODO: Import your custom stream types here:
 from tap_precoro.streams import (
-    PrecoroStream,
     TaxesStream,
     InvoicesStream,
     InvoiceDetailsStream,
     SuppliersStream,
     ItemsStream,
+    ExpensesStream,
+    ExpensesDetailsStream
 )
 
 STREAM_TYPES = [
@@ -21,6 +21,8 @@ STREAM_TYPES = [
     InvoiceDetailsStream,
     SuppliersStream,
     ItemsStream,
+    ExpensesStream,
+    ExpensesDetailsStream
 ]
 
 
