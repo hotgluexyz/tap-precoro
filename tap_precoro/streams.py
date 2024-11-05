@@ -300,6 +300,7 @@ class SuppliersStream(PrecoroStream):
             th.Property("canApprove", th.BooleanType),
             th.Property("canReject", th.BooleanType),
         )),
+        th.Property("dataSupplierCustomFields", th.CustomType({"type": ["object", "string"]})),
     ).to_dict()
 
     def get_url_params(self, context, next_page_token):
