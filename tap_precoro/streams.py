@@ -182,10 +182,7 @@ class InvoiceDetailsStream(PrecoroStream):
         th.Property("xeroId", th.CustomType({"type": ["number", "string"]})),
         th.Property("budgetedSum", th.CustomType({"type": ["number", "string"]})),
         th.Property("usedTaxPercentInBudget", th.StringType),
-        th.Property(
-            "allDocumentCustomFieldOptionsIds",
-            th.CustomType({"type": ["number", "string"]}),
-        ),
+        th.Property("allDocumentCustomFieldOptionsIds", th.StringType),
         th.Property("isRequiredTaxesForItems", th.BooleanType),
         th.Property("approvingWay", th.CustomType({"type": ["object", "array", "string"]})),
         th.Property("location", th.CustomType({"type": ["object", "string"]})),
