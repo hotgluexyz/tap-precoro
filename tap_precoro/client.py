@@ -11,7 +11,7 @@ from singer_sdk.streams import RESTStream
 from singer_sdk.authenticators import APIKeyAuthenticator
 from singer_sdk.exceptions import RetriableAPIError, FatalAPIError
 from pendulum import parse
-
+import backoff
 
 class PrecoroStream(RESTStream):
     """Precoro stream class."""
@@ -85,6 +85,20 @@ class PrecoroStream(RESTStream):
         if self.replication_key and start_date:
             params["modifiedSince"] = start_date.strftime('%Y-%m-%dT%H:%M:%S') 
         return params
+
+    def request_decorator(self, func):
+        decorator = backoff.on_exception(
+            self.backoff_wait_generator,
+            (
+                RetriableAPIError,
+                requests.exceptions.RequestException,
+            ),
+            max_tries=self.backoff_max_tries,
+            on_backoff=self.backoff_handler,
+        )(func)
+        return decorator
+
+
 
     def validate_response(self, response: requests.Response) -> None:
         if response.status_code == 429 and 'RateLimit-Type' in response.text:
