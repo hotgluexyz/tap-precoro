@@ -1,9 +1,10 @@
 """Stream type classes for tap-precoro."""
 
 from pathlib import Path
+from datetime import datetime
 from typing import Any, Dict, Optional, Union, List, Iterable
-
 from singer_sdk import typing as th  # JSON Schema typing helpers
+from pendulum import parse
 
 from tap_precoro.client import PrecoroStream
 from singer_sdk.helpers.jsonpath import extract_jsonpath
@@ -42,6 +43,16 @@ class TransactionsStream(PrecoroStream):
     ).to_dict()
 
 
+    def get_approval_date(self) -> Optional[datetime]:
+        approval_date = self.config.get("approval_date")
+        if not approval_date:
+            return None
+        try:
+            return parse(approval_date)
+        except (ValueError, TypeError):
+            self.logger.warning(f"Invalid approval date format: {approval_date!r}")
+            return None
+    
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
 
@@ -74,7 +85,13 @@ class TransactionsStream(PrecoroStream):
             statuses = [invoice_status.get(status.lower()) for status in statuses if status in invoice_status]
             params["status[]"] = statuses
 
+        # Add approval date filtering
+        approval_date = self.get_approval_date()
+        if approval_date:
+            params["approvalLeftDate"] = approval_date.strftime('%Y-%m-%dT%H:%M:%S')
+
         return params
+
 
 
 class InvoicesStream(TransactionsStream):
