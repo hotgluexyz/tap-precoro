@@ -98,7 +98,12 @@ class PrecoroStream(RESTStream):
         )(func)
         return decorator
 
-
+    def _request(
+        self, prepared_request: requests.PreparedRequest, context: dict | None
+    ) -> requests.Response:
+        # Precoro has a rate limit of 1 request per second
+        time.sleep(1)
+        return super()._request(prepared_request, context)
 
     def validate_response(self, response: requests.Response) -> None:
         if response.status_code == 429 and 'RateLimit-Type' in response.text:
