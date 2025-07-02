@@ -99,7 +99,7 @@ class PrecoroStream(RESTStream):
         return decorator
 
     def _request(
-        self, prepared_request: requests.PreparedRequest, context: dict | None
+        self, prepared_request: requests.PreparedRequest, context: Optional[dict]
     ) -> requests.Response:
         # Precoro has a rate limit of 1 request per second
         time.sleep(1)
