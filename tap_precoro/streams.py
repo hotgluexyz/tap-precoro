@@ -358,6 +358,7 @@ class ItemsStream(PrecoroStream):
         th.Property("hiddenInCatalog", th.BooleanType),
         th.Property("freeOfCharge", th.BooleanType),
         th.Property("mainInSimilar", th.BooleanType),
+        th.Property("price", th.NumberType),
         th.Property("category", th.CustomType({"type": ["object", "array"]})),
         th.Property("supplier", th.CustomType({"type": ["object", "array"]})),
         th.Property("similar", th.CustomType({"type": ["object", "array"]})),
