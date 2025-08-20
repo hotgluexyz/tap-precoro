@@ -101,7 +101,7 @@ class InvoicesStream(TransactionsStream):
     path = "/invoices"
     primary_keys = ["id"]
     replication_key = "updateDate"
-    export_condition_id = None
+    export_conditions = None
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
@@ -111,37 +111,50 @@ class InvoicesStream(TransactionsStream):
 
     def post_process(self, row, context):
         row = super().post_process(row, context)
-        # If export condition is set in config filter invoices by it
-        export_condition = self.config.get("exportOptions", {}).get("export_condition")
-        if export_condition:
-            self.logger.info(f"Export condition set in config file, filtering invoices...")
-            # validate export condition id
-            if self.export_condition_id is None:
-                try:
-                    self.export_condition_id = int(export_condition.get("id"))
-                except Exception as e:
-                    raise Exception(f"Error while casting export condition id '{cf_id}' to an int, please verify the id is correct.")
+        
+        if self.export_conditions is None:
+            export_conditions = []
+
+            # Check for new format first: "export_condition" (array)
+            new_format_conditions = self.config.get("export_condition", [])
+            if new_format_conditions:
+                export_conditions = new_format_conditions
+                
+            # Check for old format: "exportOptions.export_condition" (single object) 
+            old_format_condition = self.config.get("exportOptions", {}).get("export_condition")
+            if old_format_condition and not export_conditions:
+                export_conditions = [old_format_condition]
             
-            # check value of the export condition for the record
-            cf_id = self.export_condition_id
-            allowed_value = str(export_condition.get("value"))
-            record_dcf = row.get("dataDocumentCustomFields", {}).get("data")
-            record_dcf_ec = [
-                dcf
-                for dcf in record_dcf
-                if dcf.get("documentCustomField", {}).get("id") == cf_id
-            ]
-            # only sync if value for cf in the record is the same as in the value set in config for the export condition
-            if record_dcf_ec:
-                record_ec_value = record_dcf_ec[0].get("value")
-                if record_ec_value == allowed_value:
-                    return row
+            if export_conditions:
+                self.logger.info("Export conditions found in config file, filtering invoices...")
+                self.export_conditions = []
+                for condition in export_conditions:
+                    try:
+                        self.export_conditions.append({
+                            "id": int(condition.get("id")),
+                            "value": str(condition.get("value"))
+                        })
+                    except Exception as e:
+                        raise Exception(f"Error while processing export condition: {e}")
             else:
-                self.logger.info(
-                    f"Invoice with id {row['id']} skipped because it didn't match the export condition"
-                )
-        else:
-            return row
+                self.export_conditions = []
+        
+        if self.export_conditions:
+            record_dcf = row.get("dataDocumentCustomFields", {}).get("data", [])
+            for condition in self.export_conditions:
+                record_dcf_ec = [
+                    dcf
+                    for dcf in record_dcf
+                    if dcf.get("documentCustomField", {}).get("id") == condition["id"]
+                ]
+                if not record_dcf_ec or record_dcf_ec[0].get("value") != condition["value"]:
+                    self.logger.debug(
+                        f"Invoice with id {row['id']} skipped because it didn't match export condition with id {condition['id']}"
+                    )
+                    return None
+        
+        return row
+
 
 class InvoiceDetailsStream(PrecoroStream):
     """Define custom stream."""
