@@ -289,7 +289,7 @@ class SuppliersStream(PrecoroStream):
         th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
         th.Property("xeroId", th.StringType),
         th.Property("marketSupplier", th.ObjectType(
-            th.Property("id", th.StringType),    
+            th.Property("id", th.IntegerType),    
         )),
         th.Property("enableMarketSupplier", th.BooleanType),
         th.Property("creditBalanceSums", th.CustomType({"type": ["object", "array"]})),
