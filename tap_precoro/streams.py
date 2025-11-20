@@ -16,7 +16,7 @@ class TaxesStream(PrecoroStream):
 
     name = "taxes"
     path = "/taxes"
-    primary_keys = ["id", "idn"]
+    primary_keys = ["id"]
     replication_key = None
 
     schema = th.PropertiesList(
