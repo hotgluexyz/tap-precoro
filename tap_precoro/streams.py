@@ -112,13 +112,11 @@ class InvoicesStream(TransactionsStream):
     def post_process(self, row, context):
         row = super().post_process(row, context)
         
-        # Filter by splitIndex: only keep invoices where splitIndex is 0 or 10
-        # 0 - Single document without split-cost logic
-        # 10 - Main part of invoice with split-cost logic
-        split_index = row.get("splitIndex")
-        if split_index and split_index not in (0, 10):
+        # Filter by perantIdn: only keep invoices where there are no parentIdn
+        parent_idn = row.get("parentIdn")
+        if parent_idn:
             self.logger.info(
-                f"Invoice with id {row['id']} skipped because splitIndex: '{split_index}' is not 0 or 10"
+                f"Invoice with id {row['id']} skipped because parenIdn: '{parent_idn}'"
             )
             return None
         
