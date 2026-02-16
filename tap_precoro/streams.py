@@ -67,7 +67,9 @@ class TransactionsStream(PrecoroStream):
             "awaiting_confirmation": 6,
             "on_revise": 7,
             "canceled": 8,
-            "pending_receipt": 9 
+            "pending_receipt": 9,
+            "approval_review": 10,
+            "closed": 11
         }
         statuses = self.config.get("statuses")
 
