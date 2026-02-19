@@ -5,7 +5,7 @@ from typing import Optional, Iterable
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from pendulum import parse
 
-from tap_precoro.client import PrecoroStream
+from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin
 
 
 class TaxesStream(PrecoroStream):
@@ -92,7 +92,7 @@ class TransactionsStream(PrecoroStream):
         return params
 
 
-class InvoicesStream(TransactionsStream):
+class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
     """Define custom stream."""
 
     name = "invoices"
@@ -108,29 +108,6 @@ class InvoicesStream(TransactionsStream):
             params.pop("modifiedSince", None)
             params["sent_to_external"] = 0
         return params
-
-    def request_records(self, context: Optional[dict]) -> Iterable[dict]:
-        """Fetch updated records first, then records without externalId; yield deduplicated."""
-        seen_ids = set()
-        # Pass 1: normal incremental (modifiedSince + status etc.)
-        for record in super().request_records(context):
-            seen_ids.add(record["id"])
-            yield record
-        self.logger.info(f"Invoices from incremental sync: {len(seen_ids)}")
-        
-        # Pass 2: invoices without externalId (sent_to_external=0), no modifiedSince
-        self._fetch_no_external_only = True
-        self.page = 1
-        pass2_count = 0
-        try:
-            for record in super().request_records(context):
-                if record["id"] in seen_ids:
-                    continue
-                pass2_count += 1
-                yield record
-        finally:
-            self._fetch_no_external_only = False
-        self.logger.info(f"Invoices without externalId: {pass2_count}")
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
@@ -277,7 +254,7 @@ class InvoiceDetailsStream(PrecoroStream):
     ).to_dict()
 
 
-class SuppliersStream(PrecoroStream):
+class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
     """Define custom stream."""
 
     name = "suppliers"
@@ -395,29 +372,6 @@ class SuppliersStream(PrecoroStream):
             params["enable"] = 1
 
         return params
-
-    def request_records(self, context: Optional[dict]) -> Iterable[dict]:
-        """Fetch updated suppliers first, then suppliers without external integration; yield deduplicated."""
-        seen_ids = set()
-        # Pass 1: normal incremental (modifiedSince + status etc.)
-        for record in super().request_records(context):
-            seen_ids.add(record["id"])
-            yield record
-        self.logger.info(f"Suppliers from incremental sync: {len(seen_ids)}")
-
-        # Pass 2: suppliers without externalId (externalIntegrated=0, enable=1), no modifiedSince
-        self._fetch_no_external_only = True
-        self.page = 1
-        pass2_count = 0
-        try:
-            for record in super().request_records(context):
-                if record["id"] in seen_ids:
-                    continue
-                pass2_count += 1
-                yield record
-        finally:
-            self._fetch_no_external_only = False
-        self.logger.info(f"Suppliers without externalId: {pass2_count}")
 
 
 class ItemsStream(PrecoroStream):
