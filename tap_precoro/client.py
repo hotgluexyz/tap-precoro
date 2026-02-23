@@ -1,4 +1,4 @@
-"""REST client handling, including PrecoroStream base class."""
+"""REST client handling, including PrecoroStream base class and stream mixins."""
 
 import requests
 import json
@@ -12,6 +12,7 @@ from singer_sdk.authenticators import APIKeyAuthenticator
 from singer_sdk.exceptions import RetriableAPIError, FatalAPIError
 from pendulum import parse
 import backoff
+
 
 class PrecoroStream(RESTStream):
     """Precoro stream class."""
@@ -126,3 +127,27 @@ class PrecoroStream(RESTStream):
             time.sleep(seconds_to_wait)
             raise RetriableAPIError("Rate limit exceeded", response=response)
         super().validate_response(response)
+
+
+class ExternalIdTwoPassMixin:
+    """Mixin for streams that fetch incremental records first, then records without externalId; yields deduplicated results."""
+
+    def request_records(self, context: Optional[dict]) -> Iterable[dict]:
+        seen_ids = set()
+        for record in super().request_records(context):
+            seen_ids.add(record["id"])
+            yield record
+        self.logger.info(f"{self.name.capitalize()} from incremental sync: {len(seen_ids)}")
+
+        self._fetch_no_external_only = True
+        self.page = 1
+        pass2_count = 0
+        try:
+            for record in super().request_records(context):
+                if record["id"] in seen_ids:
+                    continue
+                pass2_count += 1
+                yield record
+        finally:
+            self._fetch_no_external_only = False
+        self.logger.info(f"{self.name.capitalize()} without externalId: {pass2_count}")
