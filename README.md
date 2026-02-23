@@ -16,7 +16,7 @@ pipx install tap-precoro
 
 ### Accepted Config Options
 
-A full list of supported settings, types, defaults, and examples is in [templates/README.md](templates/README.md). A sample [templates/config.json](templates/config.json) is provided with placeholder values for all options.
+- [ ] `Developer TODO:` Provide a list of config options accepted by the tap.
 
 A full list of supported settings and capabilities for this
 tap is available by running:

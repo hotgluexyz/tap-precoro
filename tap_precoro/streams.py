@@ -1,11 +1,14 @@
 """Stream type classes for tap-precoro."""
 
+from pathlib import Path
 from datetime import datetime
-from typing import Optional, Iterable
+from typing import Any, Dict, Optional, Union, List, Iterable
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from pendulum import parse
 
-from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin
+from tap_precoro.client import PrecoroStream
+from singer_sdk.helpers.jsonpath import extract_jsonpath
+import requests
 
 
 class TaxesStream(PrecoroStream):
@@ -92,7 +95,8 @@ class TransactionsStream(PrecoroStream):
         return params
 
 
-class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
+
+class InvoicesStream(TransactionsStream):
     """Define custom stream."""
 
     name = "invoices"
@@ -100,15 +104,7 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
     primary_keys = ["id"]
     replication_key = "updateDate"
     export_conditions = None
-
-    def get_url_params(self, context, next_page_token):
-        params = super().get_url_params(context, next_page_token)
-        # Second pass: fetch records without externalId (sent_to_external=0), no modifiedSince
-        if getattr(self, "_fetch_no_external_only", False):
-            params.pop("modifiedSince", None)
-            params["sent_to_external"] = 0
-        return params
-
+    
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
         """Return a context dictionary for child streams."""
         return {
@@ -254,7 +250,7 @@ class InvoiceDetailsStream(PrecoroStream):
     ).to_dict()
 
 
-class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
+class SuppliersStream(PrecoroStream):
     """Define custom stream."""
 
     name = "suppliers"
@@ -364,12 +360,6 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
                 if status in sup_status_map
             ]
             params["status[]"] = statuses
-
-        # Second pass: suppliers without externalId (externalIntegrated=0, enable=1), no modifiedSince
-        if getattr(self, "_fetch_no_external_only", False):
-            params.pop("modifiedSince", None)
-            params["externalIntegrated"] = 0
-            params["enable"] = 1
 
         return params
 
