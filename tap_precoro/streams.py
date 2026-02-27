@@ -254,6 +254,163 @@ class InvoiceDetailsStream(PrecoroStream):
     ).to_dict()
 
 
+
+class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
+    """Credit notes stream. Same as invoices but with logicType[]=1 and no parentIdn filtering."""
+
+    name = "credit_notes"
+    path = "/invoices"
+    primary_keys = ["id"]
+    replication_key = "updateDate"
+    export_conditions = None
+
+    def get_url_params(self, context, next_page_token):
+        params = super().get_url_params(context, next_page_token)
+        params["logicType[]"] = 1
+        # Credit notes should not be filtered by invoice statuses
+        params.pop("status[]", None)
+        # Second pass: fetch records without externalId (sent_to_external=0), no modifiedSince
+        if getattr(self, "_fetch_no_external_only", False):
+            params.pop("modifiedSince", None)
+            params["sent_to_external"] = 0
+        return params
+
+    def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
+        """Return a context dictionary for child streams."""
+        return {
+            "credit_note_id": record["idn"],
+        }
+
+    def post_process(self, row, context):
+        row = super().post_process(row, context)
+
+        if self.export_conditions is None:
+            export_conditions = []
+
+            # Check for new format first: "export_condition" (array)
+            new_format_conditions = self.config.get("export_condition", [])
+            if new_format_conditions:
+                export_conditions = new_format_conditions
+
+            # Check for old format: "exportOptions.export_condition" (single object)
+            old_format_condition = self.config.get("exportOptions", {}).get("export_condition")
+            if old_format_condition and not export_conditions:
+                export_conditions = [old_format_condition]
+
+            if export_conditions:
+                self.logger.info("Export conditions found in config file, filtering credit notes...")
+                self.export_conditions = []
+                for condition in export_conditions:
+                    try:
+                        self.export_conditions.append({
+                            "id": int(condition.get("id")),
+                            "value": str(condition.get("value"))
+                        })
+                    except Exception as e:
+                        raise Exception(f"Error while processing export condition: {e}")
+            else:
+                self.export_conditions = []
+
+        if self.export_conditions:
+            record_dcf = row.get("dataDocumentCustomFields", {}).get("data", [])
+            for condition in self.export_conditions:
+                record_dcf_ec = [
+                    dcf
+                    for dcf in record_dcf
+                    if dcf.get("documentCustomField", {}).get("id") == condition["id"]
+                ]
+                if not record_dcf_ec or record_dcf_ec[0].get("value") != condition["value"]:
+                    self.logger.debug(
+                        f"Credit note with id {row['id']} skipped because it didn't match export condition with id {condition['id']}"
+                    )
+                    return None
+
+        return row
+
+
+class CreditNoteDetailsStream(PrecoroStream):
+    """Credit note details stream."""
+
+    name = "credit_notes_details"
+    path = "/invoices/{credit_note_id}"
+    primary_keys = ["id"]
+    records_jsonpath = "$[*]"
+    replication_key = None
+    parent_stream_type = CreditNotesStream
+    schema = th.PropertiesList(
+        th.Property("id", th.NumberType),
+        th.Property("idn", th.StringType),
+        th.Property("status", th.NumberType),
+        th.Property("approvalDate", th.DateTimeType),
+        th.Property("customName", th.StringType),
+        th.Property("updateDate", th.DateTimeType),
+        th.Property("createDate", th.DateTimeType),
+        th.Property("requiredDate", th.DateTimeType),
+        th.Property("issueDate", th.DateTimeType),
+        th.Property("updateExchangeRateDate", th.DateTimeType),
+        th.Property("sumPaid", th.StringType),
+        th.Property("sumPaidInCompanyCurrency", th.CustomType({"type": ["number", "string"]})),
+        th.Property("sum", th.CustomType({"type": ["number", "string"]})),
+        th.Property("netSum", th.CustomType({"type": ["number", "string"]})),
+        th.Property(
+            "sumInCompanyCurrency", th.CustomType({"type": ["number", "string"]})
+        ),
+        th.Property(
+            "netSumInCompanyCurrency", th.CustomType({"type": ["number", "string"]})
+        ),
+        th.Property("withholdingTaxSum", th.CustomType({"type": ["number", "string"]})),
+        th.Property("currency", th.StringType),
+        th.Property("precisionData", th.CustomType({"type": ["object", "string"]})),
+        th.Property("note", th.StringType),
+        th.Property("exchangeRate", th.CustomType({"type": ["object", "array"]})),
+        th.Property("fromSupplier", th.BooleanType),
+        th.Property("statusString", th.StringType),
+        th.Property("logicType", th.CustomType({"type": ["number", "string"]})),
+        th.Property("invoiceNumber", th.StringType),
+        th.Property("deliveryNote", th.StringType),
+        th.Property("toleranceRateSum", th.StringType),
+        th.Property("toleranceRatePercent", th.StringType),
+        th.Property("purchaseOrder", th.CustomType({"type": ["array", "object"]})),
+        th.Property("prepaymentPercent", th.CustomType({"type": ["number", "string"]})),
+        th.Property(
+            "postpaymentPercent", th.CustomType({"type": ["number", "string"]})
+        ),
+        th.Property("creditPeriodDays", th.NumberType),
+        th.Property("approvalStep", th.CustomType({"type": ["object", "string"]})),
+        th.Property("paymentTerm", th.CustomType({"type": ["object", "string"]})),
+        th.Property("company", th.CustomType({"type": ["object", "string"]})),
+        th.Property("qboId", th.CustomType({"type": ["number", "string"]})),
+        th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
+        th.Property("xeroId", th.CustomType({"type": ["number", "string"]})),
+        th.Property("budgetedSum", th.CustomType({"type": ["number", "string"]})),
+        th.Property("usedTaxPercentInBudget", th.StringType),
+        th.Property("allDocumentCustomFieldOptionsIds", th.StringType),
+        th.Property("isRequiredTaxesForItems", th.BooleanType),
+        th.Property("approvingWay", th.CustomType({"type": ["object", "array", "string"]})),
+        th.Property("location", th.CustomType({"type": ["object", "string"]})),
+        th.Property("supplier", th.CustomType({"type": ["object", "string"]})),
+        th.Property("budget", th.CustomType({"type": ["array", "object"]})),
+        th.Property("budgetLine", th.CustomType({"type": ["array", "object"]})),
+        th.Property("legalEntity", th.CustomType({"type": ["array", "object"]})),
+        th.Property("creator", th.CustomType({"type": ["object", "string"]})),
+        th.Property("secondInCharge", th.CustomType({"type": ["array", "object"]})),
+        th.Property("lastApprover", th.CustomType({"type": ["object", "array"]})),
+        th.Property("approvalSteps", th.CustomType({"type": ["object", "array"]})),
+        th.Property("items", th.CustomType({"type": ["object", "array"]})),
+        th.Property("taxes", th.CustomType({"type": ["object", "array"]})),
+        th.Property("comments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("payments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("followers", th.CustomType({"type": ["object", "array"]})),
+        th.Property(
+            "dataDocumentCustomFields", th.CustomType({"type": ["object", "array"]})
+        ),
+        th.Property("attachments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("allocatedInvoice", th.CustomType({"type": ["object", "array"]})),
+        th.Property("contracts", th.CustomType({"type": ["object", "array"]})),
+        th.Property("isBudgetOverLimit", th.BooleanType),
+    ).to_dict()
+
+
 class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
     """Define custom stream."""
 
@@ -423,7 +580,6 @@ class ExpensesStream(TransactionsStream):
         return {
             "expense_idn": record["idn"],
         }
-
 
 class ExpensesDetailsStream(PrecoroStream):
     """Define custom stream."""
