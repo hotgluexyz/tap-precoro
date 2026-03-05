@@ -132,12 +132,22 @@ class PrecoroStream(RESTStream):
 class ExternalIdTwoPassMixin:
     """Mixin for streams that fetch incremental records first, then records without externalId; yields deduplicated results."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.config.get("fetch_unexported", False):
+            start_date = self.config.get("start_date")
+            if not start_date or start_date == "2000-01-01T00:00:00Z":
+                raise Exception("Please set start_date param if you want to use fetch_unexported")
+
     def request_records(self, context: Optional[dict]) -> Iterable[dict]:
         seen_ids = set()
         for record in super().request_records(context):
             seen_ids.add(record["id"])
             yield record
         self.logger.info(f"{self.name.capitalize()} from incremental sync: {len(seen_ids)}")
+
+        if not self.config.get("fetch_unexported", False):
+            return
 
         self._fetch_no_external_only = True
         self.page = 1
