@@ -103,9 +103,10 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
-        # Second pass: fetch records without externalId (sent_to_external=0), no modifiedSince
+        # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
-            params.pop("modifiedSince", None)
+            start_date = self.config.get("start_date")
+            params["modifiedSince"] = start_date
             params["sent_to_external"] = 0
         return params
 
@@ -365,9 +366,10 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
             ]
             params["status[]"] = statuses
 
-        # Second pass: suppliers without externalId (externalIntegrated=0, enable=1), no modifiedSince
+        # Second pass: suppliers without externalId (externalIntegrated=0, enable=1)
         if getattr(self, "_fetch_no_external_only", False):
-            params.pop("modifiedSince", None)
+            start_date = self.config.get("start_date")
+            params["modifiedSince"] = start_date
             params["externalIntegrated"] = 0
             params["enable"] = 1
 
