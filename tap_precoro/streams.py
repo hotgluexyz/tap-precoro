@@ -499,7 +499,8 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
         params.pop("status[]", None)
         # Second pass: fetch records without externalId (sent_to_external=0), no modifiedSince
         if getattr(self, "_fetch_no_external_only", False):
-            params.pop("modifiedSince", None)
+            start_date = self.config.get("start_date")
+            params["modifiedSince"] = start_date
             params["sent_to_external"] = 0
         return params
 
