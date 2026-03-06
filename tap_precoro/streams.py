@@ -494,10 +494,11 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
+        
+        # Param to fetch only creditNote type from invoices endpoints
         params["logicType[]"] = 1
-        # Credit notes should not be filtered by invoice statuses
-        params.pop("status[]", None)
-        # Second pass: fetch records without externalId (sent_to_external=0), no modifiedSince
+        
+        # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
             start_date = self.config.get("start_date")
             params["modifiedSince"] = start_date
