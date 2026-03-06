@@ -12,7 +12,9 @@ from tap_precoro.streams import (
     SuppliersStream,
     ItemsStream,
     ExpensesStream,
-    ExpensesDetailsStream
+    ExpensesDetailsStream,
+    CreditNotesStream,
+    CreditNoteDetailsStream
 )
 
 STREAM_TYPES = [
@@ -22,7 +24,9 @@ STREAM_TYPES = [
     SuppliersStream,
     ItemsStream,
     ExpensesStream,
-    ExpensesDetailsStream
+    ExpensesDetailsStream,
+    CreditNotesStream,
+    CreditNoteDetailsStream
 ]
 
 
