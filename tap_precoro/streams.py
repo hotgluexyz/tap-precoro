@@ -496,7 +496,7 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
         params = super().get_url_params(context, next_page_token)
         
         # Param to fetch only creditNote type from invoices endpoints
-        params["logicType[]"] = 1
+        params["logicType[]"] = [1,5]
         
         # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
