@@ -49,6 +49,13 @@ If `true`, fetches invoices in all statuses. If `false` or omitted, only approve
 - **Default**: `false`
 - **Example**: `true`
 
+## Credit Notes Stream
+
+#### `credit_note_statuses` (string, optional)
+Comma-separated list of credit note statuses to sync. When set, it is applied only to `credit_notes` stream.
+Valid values: `open`, `pending`, `approved`, `denied`, `partly_paid`, `paid`, `awaiting_confirmation`, `on_revise`, `canceled`, `pending_receipt`, `approval_review`, `closed`.
+- **Example**: `"approved,paid"`
+
 #### `export_condition` (array, optional)
 List of document custom field conditions. Only invoices matching all conditions are synced. Each item must have `id` (custom field id) and `value` (string).
 - **Example**: `[{"id": 12345, "value": "some_value"}]`
@@ -90,6 +97,7 @@ Comma-separated list of supplier statuses to sync. Valid values: `approved`, `pe
   "start_date": "2024-01-01T00:00:00",
   "approval_date": "2024-01-01T00:00:00",
   "statuses": "approved,paid",
+  "credit_note_statuses": "approved",
   "all_invoices": false,
   "supplier_status": "approved",
   "export_condition": [

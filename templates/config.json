@@ -6,6 +6,7 @@
   "start_date": "2024-01-01T00:00:00",
   "approval_date": "2024-01-01T00:00:00",
   "statuses": "approved,paid",
+  "credit_note_statuses": "approved",
   "all_invoices": false,
   "supplier_status": "approved",
   "fetch_unexported": false,
