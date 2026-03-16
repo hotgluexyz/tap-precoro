@@ -39,6 +39,9 @@ class TransactionsStream(PrecoroStream):
         th.Property("statusString", th.StringType),
     ).to_dict()
 
+    def get_statuses_config(self) -> Optional[str]:
+        return self.config.get("statuses")
+
 
     def get_approval_date(self) -> Optional[datetime]:
         approval_date = self.config.get("approval_date")
@@ -68,7 +71,7 @@ class TransactionsStream(PrecoroStream):
             "approval_review": 10,
             "closed": 11
         }
-        statuses = self.config.get("statuses")
+        statuses = self.get_statuses_config()
 
         # Fetch only approved invoices by default
         params["status[]"] = 2
@@ -80,7 +83,9 @@ class TransactionsStream(PrecoroStream):
         elif statuses:
             statuses = statuses.split(",")
             statuses = [status.strip() for status in statuses]
-            self.logger.info(f"Status flag found in config file fetching invoices with status in {statuses}.")
+            self.logger.info(
+                f"Status flag found in config file fetching {self.name} with status in {statuses}."
+            )
             statuses = [invoice_status.get(status.lower()) for status in statuses if status in invoice_status]
             params["status[]"] = statuses
 
@@ -492,11 +497,14 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
     replication_key = "updateDate"
     export_conditions = None
 
+    def get_statuses_config(self) -> Optional[str]:
+        return self.config.get("credit_note_statuses")
+
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
         
         # Param to fetch only creditNote type from invoices endpoints
-        params["logicType[]"] = 1
+        params["logicType[]"] = [1,5]
         
         # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
