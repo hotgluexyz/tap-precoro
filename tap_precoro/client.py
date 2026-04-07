@@ -54,18 +54,27 @@ class PrecoroStream(RESTStream):
     ) -> Optional[Any]:
         """Return a token for identifying next page or None if no more pages."""
         resp = response.json()
-        if "meta" in resp:
-            if (
-                resp["meta"]["pagination"]["current_page"]
-                == resp["meta"]["pagination"]["total_pages"]
-            ):
+        pagination = resp.get("meta", {}).get("pagination", {})
+
+        has_next_page = pagination.get("has_next_page")
+        if isinstance(has_next_page, bool):
+            if has_next_page:
+                self.page += 1
+            else:
+                self.page = None
+            return self.page
+
+        # Backward compatibility for older payloads.
+        current_page = pagination.get("current_page")
+        total_pages = pagination.get("total_pages")
+        if current_page is not None and total_pages is not None:
+            if current_page == total_pages:
                 self.page = None
             else:
                 self.page += 1
-        else:
-            return None
+            return self.page
 
-        return self.page
+        return None
     
     def get_starting_time(self, context):
         start_date = self.config.get("start_date")
