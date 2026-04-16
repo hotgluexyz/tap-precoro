@@ -384,11 +384,19 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
 
         time.sleep(1)
 
+        started_at = time.perf_counter()
+
         response = self.requests_session.get(
             f"{self.url_base}/suppliers/{supplier_id}",
             headers=headers,
         )
         self.validate_response(response)
+        self.logger.info(
+            "Supplier details request endpoint=/suppliers/%s status=%s duration=%.3fs",
+            supplier_id,
+            response.status_code,
+            time.perf_counter() - started_at,
+        )
         payload = response.json()
         return payload if isinstance(payload, dict) else {}
 
