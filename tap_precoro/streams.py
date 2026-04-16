@@ -1,7 +1,10 @@
 """Stream type classes for tap-precoro."""
 
+import time
 from datetime import datetime
 from typing import Optional, Iterable
+
+import requests
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from pendulum import parse
 
@@ -273,6 +276,7 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
         th.Property("name", th.StringType),
         th.Property("createDate", th.DateTimeType),
         th.Property("updateDate", th.DateTimeType),
+        th.Property("approvalDate", th.DateTimeType),
         th.Property("legalAddress", th.StringType),
         th.Property("currency", th.StringType),
         th.Property("autoSendPOSupplier", th.BooleanType),
@@ -306,10 +310,13 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
         th.Property("enable", th.BooleanType),
         th.Property("isMarketUpdatable", th.BooleanType),
         th.Property("qboId", th.StringType),
+        th.Property("netSuiteId", th.CustomType({"type": ["number", "string"]})),
+        th.Property("integrationStatus", th.CustomType({"type": ["object", "string", "array", "number"]})),
         th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
         th.Property("xeroId", th.StringType),
         th.Property("marketSupplier", th.ObjectType(
             th.Property("id", th.IntegerType),    
+            th.Property("minimumSum", th.CustomType({"type": ["number", "string"]})),
         )),
         th.Property("enableMarketSupplier", th.BooleanType),
         th.Property("creditBalanceSums", th.CustomType({"type": ["object", "array"]})),
@@ -327,8 +334,10 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
                     th.Property("prepaymentPercent", th.NumberType),
                     th.Property("postpaymentPercent", th.NumberType),
                     th.Property("creditPeriodDays", th.NumberType),
+                    th.Property("termsDueDateAfterInvoicing", th.NumberType),
                     th.Property("paymentType", th.NumberType),
                     th.Property("enable", th.BooleanType),
+                    th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
                 )
             )),
         )),
@@ -343,12 +352,68 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
            th.Property("data", th.ArrayType(th.CustomType({"type": ["object", "array", "string"]}))), 
         )),
         th.Property("supplierRegistration", th.CustomType({"type": ["object", "array", "string"]})),
+        th.Property("supplierRegistrations", th.CustomType({"type": ["object", "array"]})),
+        th.Property("attachments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("marketAttachments", th.CustomType({"type": ["object", "array"]})),
         th.Property("approvalInfo", th.ObjectType(
             th.Property("canApprove", th.BooleanType),
             th.Property("canReject", th.BooleanType),
+            th.Property("canEditSupplierByInRevision", th.BooleanType),
         )),
         th.Property("dataSupplierCustomFields", th.CustomType({"type": ["object", "string"]})),
+        th.Property("propsVisibility", th.CustomType({"type": ["object", "array"]})),
+        th.Property("supplierTaxDefaultOptions", th.CustomType({"type": ["object", "array"]})),
+        th.Property("supplierICFDefaultOptions", th.CustomType({"type": ["object", "array"]})),
+        th.Property("supplierDCFDefaultOptions", th.CustomType({"type": ["object", "array"]})),
+        th.Property("supplierCustomFieldOptionValues", th.CustomType({"type": ["object", "array"]})),
+        th.Property("supplierToleranceLimitsSetup", th.CustomType({"type": ["object", "array"]})),
+        th.Property("showApprovingWay", th.CustomType({"type": ["object", "array", "string"]})),
+        th.Property("showApprovalReviewers", th.CustomType({"type": ["object", "array", "string"]})),
+        th.Property("substitute", th.CustomType({"type": ["object", "array", "string"]})),
+        th.Property("supplierLegalEntities", th.CustomType({"type": ["object", "array"]})),
+        th.Property("voters", th.CustomType({"type": ["object", "array"]})),
+        th.Property("isEnabledApproval", th.BooleanType),
+        th.Property("accessToDocuments", th.CustomType({"type": ["object", "array"]})),
+        th.Property("isPunchoutSupplier", th.BooleanType),
+        th.Property("isAllAccessLegalEntity", th.BooleanType),
     ).to_dict()
+
+    def _fetch_supplier_details(self, supplier_id) -> dict:
+        headers = dict(self.http_headers)
+        headers["X-AUTH-TOKEN"] = self.config.get("auth_token")
+
+        time.sleep(1)
+
+        response = self.requests_session.get(
+            f"{self.url_base}/suppliers/{supplier_id}",
+            headers=headers,
+        )
+        self.validate_response(response)
+        payload = response.json()
+        return payload if isinstance(payload, dict) else {}
+
+    def request_records(self, context: Optional[dict]) -> Iterable[dict]:
+        for supplier in super().request_records(context):
+            supplier_id = supplier.get("id")
+
+            try:
+                supplier_details = self._fetch_supplier_details(supplier_id)
+            except (requests.RequestException, ValueError) as exc:
+                self.logger.warning(
+                    "Failed to fetch supplier details for id %s: %s",
+                    supplier_id,
+                    exc,
+                )
+                yield supplier
+                continue
+
+            if not supplier_details:
+                yield supplier
+                continue
+
+            supplier_details.setdefault("id", supplier_id)
+            supplier_details.setdefault("updateDate", supplier.get("updateDate"))
+            yield supplier_details
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
