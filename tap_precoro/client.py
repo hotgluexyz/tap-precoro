@@ -140,7 +140,31 @@ class PrecoroStream(RESTStream):
 
 class AccountSetupMixin:
     """Mixin to support Account Setup mode, where one Precoro supplier maps to multiple LegalEntities in external systems."""
-    pass
+    
+    def post_process(self, row: dict, context: Optional[dict] = None) -> Optional[dict]:
+        # Process through other inheritances first
+        if hasattr(super(), "post_process"):
+            row = super().post_process(row, context) or row
+            
+        if not row:
+            return row
+            
+        if self.config.get("account_setup_enabled") and row.get("externalId"):
+            external_id = row["externalId"]
+            base_url = self.config.get("account_setup_url", "http://localhost:8080").rstrip("/")
+            url = f"{base_url}/api/hotglue/account_setup"
+            
+            try:
+                response = requests.get(url, params={"externalId": external_id}, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                if data.get("isSuccess"):
+                    row["accountSetupData"] = data.get("records", [])
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch account setup data for externalId {external_id}: {e}")
+                
+        return row
 
 
 class ExternalIdTwoPassMixin:

@@ -52,6 +52,12 @@ class TapPrecoro(Tap):
             default=False,
             description="Enable account setup to allow mapping one Precoro entity to multiple external system entities",
         ),
+        th.Property(
+            "account_setup_url",
+            th.StringType,
+            default="http://localhost:8080",
+            description="Base URL for account setup microservice API",
+        ),
     ).to_dict()
 
     def discover_streams(self) -> List[Stream]:

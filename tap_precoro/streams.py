@@ -313,6 +313,17 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
         th.Property("netSuiteId", th.CustomType({"type": ["number", "string"]})),
         th.Property("integrationStatus", th.CustomType({"type": ["object", "string", "array", "number"]})),
         th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
+        th.Property("accountSetupData", th.ArrayType(
+            th.ObjectType(
+                th.Property("companyId", th.IntegerType),
+                th.Property("integrationId", th.StringType),
+                th.Property("integrationType", th.StringType),
+                th.Property("legalEntityId", th.IntegerType),
+                th.Property("mapField", th.StringType),
+                th.Property("name", th.StringType),
+                th.Property("precoroId", th.IntegerType),
+            )
+        )),
         th.Property("xeroId", th.StringType),
         th.Property("marketSupplier", th.ObjectType(
             th.Property("id", th.IntegerType),    
