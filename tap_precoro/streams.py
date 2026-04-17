@@ -8,7 +8,7 @@ import requests
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from pendulum import parse
 
-from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin
+from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin, AccountSetupMixin
 
 
 class TaxesStream(PrecoroStream):
@@ -263,7 +263,7 @@ class InvoiceDetailsStream(PrecoroStream):
     ).to_dict()
 
 
-class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
+class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
     """Define custom stream."""
 
     name = "suppliers"

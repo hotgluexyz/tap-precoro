@@ -138,6 +138,11 @@ class PrecoroStream(RESTStream):
         super().validate_response(response)
 
 
+class AccountSetupMixin:
+    """Mixin to support Account Setup mode, where one Precoro supplier maps to multiple LegalEntities in external systems."""
+    pass
+
+
 class ExternalIdTwoPassMixin:
     """Mixin for streams that fetch incremental records first, then records without externalId; yields deduplicated results."""
 

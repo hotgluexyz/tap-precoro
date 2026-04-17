@@ -46,6 +46,12 @@ class TapPrecoro(Tap):
             th.StringType,
             required=True,
         ),
+        th.Property(
+            "account_setup_enabled",
+            th.BooleanType,
+            default=False,
+            description="Enable account setup to allow mapping one Precoro entity to multiple external system entities",
+        ),
     ).to_dict()
 
     def discover_streams(self) -> List[Stream]:
