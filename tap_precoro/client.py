@@ -149,9 +149,10 @@ class AccountSetupMixin:
         if not row:
             return row
             
-        if self.config.get("account_setup_enabled") and row.get("externalId"):
+        account_setup = self.config.get("AccountSetup", {})
+        if account_setup.get("enabled") and row.get("externalId"):
             external_id = row["externalId"]
-            base_url = self.config.get("account_setup_url", "http://localhost:8080").rstrip("/")
+            base_url = account_setup.get("url", "http://localhost:8080").rstrip("/")
             url = f"{base_url}/api/hotglue/account_setup"
             
             try:
