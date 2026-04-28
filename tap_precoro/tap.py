@@ -54,6 +54,12 @@ class TapPrecoro(Tap):
             ),
             description="Configuration for account setup mapping",
         ),
+        th.Property(
+            "fetch_supplier_details",
+            th.BooleanType,
+            default=False,
+            description="If true, enrich suppliers with per-record /suppliers/{id} requests.",
+        ),
     ).to_dict()
 
     def discover_streams(self) -> List[Stream]:

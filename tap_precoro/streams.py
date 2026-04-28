@@ -411,8 +411,15 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
         payload = response.json()
         return payload if isinstance(payload, dict) else {}
 
+    def _should_fetch_supplier_details(self) -> bool:
+        return bool(self.config.get("fetch_supplier_details", False))
+
     def request_records(self, context: Optional[dict]) -> Iterable[dict]:
         for supplier in super().request_records(context):
+            if not self._should_fetch_supplier_details():
+                yield supplier
+                continue
+
             supplier_id = supplier.get("id")
 
             try:
