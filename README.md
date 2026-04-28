@@ -43,7 +43,14 @@ To enable and configure this feature, add the `AccountSetup` object to your tap 
   ...
   "AccountSetup": {
     "enabled": true,
-    "url": "http://your-microservice-url:8080"
+    "legalEntity": {
+        "27377": "14a4d51e-5533-f111-bec2-000d3aed9274",
+        "27378": "91475188-4333-f111-bec2-000d3aed9274"
+    },
+    "companyId": 25229,
+    "secret": "secret",
+    "url": "url",
+    "integrationType": "dynamics-bc"
   }
 }
 ```
