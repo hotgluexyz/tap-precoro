@@ -49,8 +49,15 @@ class TapPrecoro(Tap):
         th.Property(
             "AccountSetup",
             th.ObjectType(
-                th.Property("enabled", th.BooleanType, default=False),
-                th.Property("url", th.StringType, default="http://localhost:8080"),
+                th.Property("enabled", th.BooleanType),
+                th.Property(
+                    "legalEntity",
+                    th.CustomType({"type": "object", "additionalProperties": {"type": "string"}}),
+                ),
+                th.Property("companyId", th.IntegerType),
+                th.Property("secret", th.StringType),
+                th.Property("url", th.StringType),
+                th.Property("integrationType", th.StringType),
             ),
             description="Configuration for account setup mapping",
         ),
