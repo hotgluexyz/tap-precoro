@@ -73,6 +73,12 @@ Legacy format for a single export condition. Use `export_condition` (array) for 
 Comma-separated list of supplier statuses to sync. Valid values: `approved`, `pending`, `rejected`.
 - **Example**: `"approved"`
 
+#### `fetch_supplier_details` (boolean, optional)
+If `true`, each supplier from `/suppliers` is additionally enriched by a child request to `/suppliers/{id}`.
+If `false` or omitted, the tap only uses `/suppliers`.
+- **Default**: `false`
+- **Example**: `true`
+
 ---
 
 ## Minimal config.json (required options only)
@@ -100,6 +106,7 @@ Comma-separated list of supplier statuses to sync. Valid values: `approved`, `pe
   "credit_note_statuses": "approved",
   "all_invoices": false,
   "supplier_status": "approved",
+  "fetch_supplier_details": false,
   "export_condition": [
     {
       "id": 12345,

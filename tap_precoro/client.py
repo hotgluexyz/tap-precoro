@@ -2,6 +2,8 @@
 
 import requests
 import json
+import hmac
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, List, Iterable
 import time
@@ -136,6 +138,56 @@ class PrecoroStream(RESTStream):
             time.sleep(seconds_to_wait)
             raise RetriableAPIError("Rate limit exceeded", response=response)
         super().validate_response(response)
+
+
+class AccountSetupMixin:
+    """Mixin to support Account Setup mode, where one Precoro supplier maps to multiple LegalEntities in external systems."""
+    
+    def _get_account_setup_headers(self, account_setup: dict, payload: dict = None) -> dict:
+        """Generate Authorization signature and headers for AccountSetup microservice."""
+        secret = str(account_setup.get("secret"))
+        company_id = str(account_setup.get("companyId", ""))
+
+        # Signature must use compact JSON for non-GET and empty payload for GET.
+        payload_json = json.dumps(payload, separators=(",", ":")) if payload is not None else ""
+
+        string_to_sign = f"{payload_json}.{company_id}"
+        signature = hmac.new(bytes(secret, 'UTF-8'), string_to_sign.encode(), hashlib.sha256).hexdigest()
+
+        headers = {
+            "X-PRECORO-AUTH": signature,
+            "X-COMPANY-ID": company_id
+        }
+        return headers
+
+    def post_process(self, row: dict, context: Optional[dict] = None) -> Optional[dict]:
+        # Process through other inheritances first
+        if hasattr(super(), "post_process"):
+            row = super().post_process(row, context) or row
+            
+        if not row:
+            return row
+            
+        account_setup = self.config.get("AccountSetup", {})
+        if account_setup.get("enabled") and row.get("externalId"):
+            external_id = row["externalId"]
+            base_url = account_setup.get("url").rstrip("/")
+            url = f"{base_url}/api/hotglue/account_setup"
+            
+            try:
+                self.logger.info(f"Fetching Account Setup data for externalId {external_id} from {url}")
+                headers = self._get_account_setup_headers(account_setup)
+                response = requests.get(url, params={"externalId": external_id}, headers=headers, timeout=10)
+                response.raise_for_status()
+                data = response.json()
+                
+                records = data.get("records")
+                if data.get("isSuccess") and records:
+                    row["accountSetupData"] = records
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch account setup data for externalId {external_id}: {e}")
+                
+        return row
 
 
 class ExternalIdTwoPassMixin:

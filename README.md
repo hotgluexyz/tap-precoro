@@ -25,6 +25,39 @@ tap is available by running:
 tap-precoro --about
 ```
 
+### Account Setup Integration (Multi-Entity Mapping)
+
+`tap-precoro` supports an optional data enrichment feature to map a single entity in Precoro to multiple entities (Legal Entities, Subsidiaries, Companies, etc.) in external accounting systems (like NetSuite, QuickBooks, Xero). This feature is particularly useful when working with suppliers or other records that have an `externalId` but need to be distributed across multiple external accounts.
+
+**How it works:**
+When this feature is enabled, the tap automatically intercepts each processed record (using a custom `AccountSetupMixin`). If the record contains an `externalId`, the tap makes an HTTP GET request to your Account Setup microservice endpoint:
+`GET <url>/api/hotglue/account_setup?externalId=<externalId>`
+
+If the microservice returns a success response, the tap injects an `accountSetupData` array field into the outgoing record before passing it to the target. This array contains configuration for how the record should be mapped externally (e.g., `companyId`, `legalEntityId`, `integrationType`, etc.).
+
+**Configuration:**
+To enable and configure this feature, add the `AccountSetup` object to your tap configuration dictionary (`config.json`):
+
+```json
+{
+  ...
+  "AccountSetup": {
+    "enabled": true,
+    "legalEntity": {
+        "27377": "14a4d51e-5533-f111-bec2-000d3aed9274",
+        "27378": "91475188-4333-f111-bec2-000d3aed9274"
+    },
+    "companyId": 25229,
+    "secret": "secret",
+    "url": "url",
+    "integrationType": "dynamics-bc"
+  }
+}
+```
+
+- `AccountSetup.enabled` (boolean): Set to `true` to turn on account setup enrichment. Defaults to `false`.
+- `AccountSetup.url` (string): The base URL of your target Account Setup microservice.
+
 ### Configure using environment variables
 
 This Singer tap will automatically import any environment variables within the working directory's
