@@ -444,6 +444,10 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
+
+        # Only integrate enabled (active) suppliers from Precoro.
+        params["enable"] = 1
+
         supplier_status = self.config.get("supplier_status")
 
         if supplier_status:
@@ -463,12 +467,11 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
             ]
             params["status[]"] = statuses
 
-        # Second pass: suppliers without externalId (externalIntegrated=0, enable=1)
+        # Second pass: suppliers without externalId (externalIntegrated=0); enable=1 already set above
         if getattr(self, "_fetch_no_external_only", False):
             start_date = self.config.get("start_date")
             params["modifiedSince"] = start_date
             params["externalIntegrated"] = 0
-            params["enable"] = 1
 
         return params
 
