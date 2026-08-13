@@ -10,6 +10,10 @@ from pendulum import parse
 
 from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin, AccountSetupMixin
 
+# Precoro integrationStatus value meaning the document is waiting on a disabled/offline
+# connector (handled by the hotglue-webhook path now), so the polling job must skip it.
+INTEGRATION_STATUS_WAITING_FOR_CONNECTOR = 8
+
 
 class TaxesStream(PrecoroStream):
     """Define custom stream."""
@@ -126,7 +130,15 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
     
     def post_process(self, row, context):
         row = super().post_process(row, context)
-        
+
+        # Skip invoices waiting on a disabled connector: the hotglue-webhook now
+        # handles those once the connector comes back, so the polling job must not re-pull them.
+        if row.get("integrationStatus") == INTEGRATION_STATUS_WAITING_FOR_CONNECTOR:
+            self.logger.info(
+                f"Invoice with id {row['id']} skipped because integrationStatus is 'Waiting for Connector' (8)"
+            )
+            return None
+
         # Filter by perantIdn: only keep invoices where there are no parentIdn
         parent_idn = row.get("parentIdn")
         if parent_idn:
@@ -613,6 +625,14 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
 
     def post_process(self, row, context):
         row = super().post_process(row, context)
+
+        # Skip credit notes waiting on a disabled connector: the hotglue-webhook now
+        # handles those once the connector comes back, so the polling job must not re-pull them.
+        if row.get("integrationStatus") == INTEGRATION_STATUS_WAITING_FOR_CONNECTOR:
+            self.logger.info(
+                f"Credit note with id {row['id']} skipped because integrationStatus is 'Waiting for Connector' (8)"
+            )
+            return None
 
         if self.export_conditions is None:
             export_conditions = []
