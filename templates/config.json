@@ -9,6 +9,7 @@
   "credit_note_statuses": "approved",
   "all_invoices": false,
   "supplier_status": "approved",
+  "fetch_supplier_details": false,
   "fetch_unexported": false,
   "export_condition": [
     {

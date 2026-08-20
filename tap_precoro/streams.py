@@ -8,7 +8,7 @@ import requests
 from singer_sdk import typing as th  # JSON Schema typing helpers
 from pendulum import parse
 
-from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin
+from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin, AccountSetupMixin
 
 
 class TaxesStream(PrecoroStream):
@@ -257,14 +257,14 @@ class InvoiceDetailsStream(PrecoroStream):
             "dataDocumentCustomFields", th.CustomType({"type": ["object", "array"]})
         ),
         th.Property("attachments", th.CustomType({"type": ["object", "array"]})),
-        th.Property("relatedOcrAttachment", th.CustomType({"type": ["object", "array", "null"]})),
+        th.Property("relatedOcrAttachment", th.CustomType({"type": ["object", "array"]})),
         th.Property("allocatedInvoice", th.CustomType({"type": ["object", "array"]})),
         th.Property("contracts", th.CustomType({"type": ["object", "array"]})),
         th.Property("isBudgetOverLimit", th.BooleanType),
     ).to_dict()
 
 
-class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
+class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
     """Define custom stream."""
 
     name = "suppliers"
@@ -314,6 +314,17 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
         th.Property("netSuiteId", th.CustomType({"type": ["number", "string"]})),
         th.Property("integrationStatus", th.CustomType({"type": ["object", "string", "array", "number"]})),
         th.Property("externalId", th.CustomType({"type": ["number", "string"]})),
+        th.Property("accountSetupData", th.ArrayType(
+            th.ObjectType(
+                th.Property("companyId", th.IntegerType),
+                th.Property("integrationId", th.StringType),
+                th.Property("integrationType", th.StringType),
+                th.Property("legalEntityId", th.IntegerType),
+                th.Property("mapField", th.StringType),
+                th.Property("name", th.StringType),
+                th.Property("precoroId", th.IntegerType),
+            )
+        )),
         th.Property("xeroId", th.StringType),
         th.Property("marketSupplier", th.ObjectType(
             th.Property("id", th.IntegerType),    
@@ -401,8 +412,15 @@ class SuppliersStream(ExternalIdTwoPassMixin, PrecoroStream):
         payload = response.json()
         return payload if isinstance(payload, dict) else {}
 
+    def _should_fetch_supplier_details(self) -> bool:
+        return bool(self.config.get("fetch_supplier_details", False))
+
     def request_records(self, context: Optional[dict]) -> Iterable[dict]:
         for supplier in super().request_records(context):
+            if not self._should_fetch_supplier_details():
+                yield supplier
+                continue
+
             supplier_id = supplier.get("id")
 
             try:
