@@ -10,6 +10,10 @@ from pendulum import parse
 
 from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin, AccountSetupMixin
 
+# Precoro integrationStatus value meaning the document is waiting on a disabled/offline
+# connector (handled by the hotglue-webhook path now), so the polling job must skip it.
+INTEGRATION_STATUS_WAITING_FOR_CONNECTOR = 8
+
 
 class TaxesStream(PrecoroStream):
     """Define custom stream."""
@@ -127,6 +131,14 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
     def post_process(self, row, context):
         row = super().post_process(row, context)
         
+        # Skip invoices waiting on a disabled connector: the hotglue-webhook now
+        # handles those once the connector comes back, so the polling job must not re-pull them.
+        if row.get("integrationStatus") == INTEGRATION_STATUS_WAITING_FOR_CONNECTOR:
+            self.logger.info(
+                f"Invoice with id {row['id']} skipped because integrationStatus is 'Waiting for Connector' (8)"
+            )
+            return None
+
         # Filter split-cost children: only keep the base invoice, so it's the
         # only one ever exported. The API used to expose this as a flat
         # `parentIdn` string; it's now nested under `parentData.idn` - the old
@@ -448,6 +460,10 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
+
+        # Only integrate enabled (active) suppliers from Precoro.
+        params["enable"] = 1
+
         supplier_status = self.config.get("supplier_status")
 
         if supplier_status:
@@ -467,12 +483,11 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
             ]
             params["status[]"] = statuses
 
-        # Second pass: suppliers without externalId (externalIntegrated=0, enable=1)
+        # Second pass: suppliers without externalId (externalIntegrated=0); enable=1 already set above
         if getattr(self, "_fetch_no_external_only", False):
             start_date = self.config.get("start_date")
             params["modifiedSince"] = start_date
             params["externalIntegrated"] = 0
-            params["enable"] = 1
 
         return params
 
@@ -617,6 +632,14 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
 
     def post_process(self, row, context):
         row = super().post_process(row, context)
+
+        # Skip credit notes waiting on a disabled connector: the hotglue-webhook now
+        # handles those once the connector comes back, so the polling job must not re-pull them.
+        if row.get("integrationStatus") == INTEGRATION_STATUS_WAITING_FOR_CONNECTOR:
+            self.logger.info(
+                f"Credit note with id {row['id']} skipped because integrationStatus is 'Waiting for Connector' (8)"
+            )
+            return None
 
         if self.export_conditions is None:
             export_conditions = []
