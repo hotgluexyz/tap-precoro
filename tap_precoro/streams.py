@@ -130,7 +130,7 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
     
     def post_process(self, row, context):
         row = super().post_process(row, context)
-
+        
         # Skip invoices waiting on a disabled connector: the hotglue-webhook now
         # handles those once the connector comes back, so the polling job must not re-pull them.
         if row.get("integrationStatus") == INTEGRATION_STATUS_WAITING_FOR_CONNECTOR:
@@ -139,11 +139,15 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
             )
             return None
 
-        # Filter by perantIdn: only keep invoices where there are no parentIdn
-        parent_idn = row.get("parentIdn")
+        # Filter split-cost children: only keep the base invoice, so it's the
+        # only one ever exported. The API used to expose this as a flat
+        # `parentIdn` string; it's now nested under `parentData.idn` - the old
+        # flat key no longer exists in the response, so the check silently
+        # never matched and children leaked through.
+        parent_idn = (row.get("parentData") or {}).get("idn")
         if parent_idn:
             self.logger.info(
-                f"Invoice with id {row['id']} skipped because parenIdn: '{parent_idn}'"
+                f"Invoice with id {row['id']} skipped because parentData.idn: '{parent_idn}'"
             )
             return None
         
