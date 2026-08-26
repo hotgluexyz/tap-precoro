@@ -150,7 +150,14 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
                 f"Invoice with id {row['id']} skipped because parentData.idn: '{parent_idn}'"
             )
             return None
-        
+
+        # Filter out internal invoices (integrationStatus = 3): never send these to the job
+        if row.get("integrationStatus") == 3:
+            self.logger.info(
+                f"Invoice with id {row['id']} skipped because integrationStatus=3 (internal)"
+            )
+            return None
+
         if self.export_conditions is None:
             export_conditions = []
 
