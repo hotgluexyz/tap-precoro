@@ -120,6 +120,13 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
             start_date = self.config.get("start_date")
             params["modifiedSince"] = start_date
             params["sent_to_external"] = 0
+        # Third pass: fetch records currently in Processing integration status,
+        # regardless of updateDate (integrationStatus changes don't bump updateDate)
+        # or workflow status[]
+        if getattr(self, "_fetch_processing_only", False):
+            params.pop("modifiedSince", None)
+            params.pop("status[]", None)
+            params["integrationStatus[]"] = 7
         return params
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
@@ -294,6 +301,9 @@ class SuppliersStream(AccountSetupMixin, ExternalIdTwoPassMixin, PrecoroStream):
     path = "/suppliers"
     primary_keys = ["id"]
     replication_key = "updateDate"
+    # get_url_params below has no _fetch_processing_only handling (suppliers use
+    # externalIntegrated/enable, not integrationStatus[]) - opt out of the pass.
+    fetch_processing_status = False
     schema = th.PropertiesList(
         th.Property("id", th.NumberType),
         th.Property("uniqueCode", th.StringType),
@@ -620,15 +630,21 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
-        
+
         # Param to fetch only creditNote type from invoices endpoints
         params["logicType[]"] = [1,5]
-        
+
         # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
             start_date = self.config.get("start_date")
             params["modifiedSince"] = start_date
             params["sent_to_external"] = 0
+        # Third pass: fetch records currently in Processing integration status,
+        # regardless of updateDate or workflow status[]
+        if getattr(self, "_fetch_processing_only", False):
+            params.pop("modifiedSince", None)
+            params.pop("status[]", None)
+            params["integrationStatus[]"] = 7
         return params
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:

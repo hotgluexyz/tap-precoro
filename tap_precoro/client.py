@@ -193,6 +193,10 @@ class AccountSetupMixin:
 class ExternalIdTwoPassMixin:
     """Mixin for streams that fetch incremental records first, then records without externalId; yields deduplicated results."""
 
+    # Override to False on streams whose get_url_params doesn't know how to fetch
+    # integrationStatus=Processing records (see _fetch_processing_only below).
+    fetch_processing_status = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.config.get("fetch_unexported", False):
@@ -207,18 +211,32 @@ class ExternalIdTwoPassMixin:
             yield record
         self.logger.info(f"{self.name.capitalize()} from incremental sync: {len(seen_ids)}")
 
-        if not self.config.get("fetch_unexported", False):
-            return
+        if self.config.get("fetch_unexported", False):
+            self._fetch_no_external_only = True
+            self.page = 1
+            pass2_count = 0
+            try:
+                for record in super().request_records(context):
+                    if record["id"] in seen_ids:
+                        continue
+                    seen_ids.add(record["id"])
+                    pass2_count += 1
+                    yield record
+            finally:
+                self._fetch_no_external_only = False
+            self.logger.info(f"{self.name.capitalize()} without externalId: {pass2_count}")
 
-        self._fetch_no_external_only = True
-        self.page = 1
-        pass2_count = 0
-        try:
-            for record in super().request_records(context):
-                if record["id"] in seen_ids:
-                    continue
-                pass2_count += 1
-                yield record
-        finally:
-            self._fetch_no_external_only = False
-        self.logger.info(f"{self.name.capitalize()} without externalId: {pass2_count}")
+        if self.fetch_processing_status:
+            self._fetch_processing_only = True
+            self.page = 1
+            pass3_count = 0
+            try:
+                for record in super().request_records(context):
+                    if record["id"] in seen_ids:
+                        continue
+                    seen_ids.add(record["id"])
+                    pass3_count += 1
+                    yield record
+            finally:
+                self._fetch_processing_only = False
+            self.logger.info(f"{self.name.capitalize()} in Processing status: {pass3_count}")
