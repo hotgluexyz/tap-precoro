@@ -21,6 +21,10 @@ INVOICE_STATUS_CANCELED = 8
 # Workflow statuses allowed through the Processing catch-up pass (approved, partly_paid, paid).
 PROCESSING_PASS_ALLOWED_STATUSES = {2, 4, 5}
 
+# Invoice logicType values that mean the document is a credit note (credit note from invoice,
+# credit note from scratch). They're exported via the credit_notes stream, never as invoices.
+CREDIT_NOTE_LOGIC_TYPES = {1, 5}
+
 
 class TaxesStream(PrecoroStream):
     """Define custom stream."""
@@ -156,6 +160,13 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
         # Skip canceled invoices (else the processing-status pass re-fetches them forever)
         if row.get("status") == INVOICE_STATUS_CANCELED:
             self.logger.info(f"Invoice with id {row['id']} skipped because status=8 (canceled)")
+            return None
+        # Skip credit notes: /invoices returns them too, but they're synced by the credit_notes
+        # stream - letting them through here exports every credit note a second time as a bill
+        if row.get("logicType") in CREDIT_NOTE_LOGIC_TYPES:
+            self.logger.info(
+                f"Invoice with id {row['id']} skipped because logicType={row.get('logicType')} (credit note)"
+            )
             return None
         # Skip invoices that do not have allowed statuses
         if getattr(self, "_fetch_processing_only", False) and row.get("status") not in PROCESSING_PASS_ALLOWED_STATUSES:
