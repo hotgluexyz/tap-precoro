@@ -25,6 +25,10 @@ PROCESSING_PASS_ALLOWED_STATUSES = {2, 4, 5}
 # credit note from scratch). They're exported via the credit_notes stream, never as invoices.
 CREDIT_NOTE_LOGIC_TYPES = {1, 5}
 
+# Credit notes are never left "approved": Precoro marks them paid / partly paid on approval,
+# so these are the statuses to sync when credit_note_statuses isn't set in config.
+DEFAULT_CREDIT_NOTE_STATUSES = "partly_paid,paid"
+
 
 class TaxesStream(PrecoroStream):
     """Define custom stream."""
@@ -789,7 +793,7 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
     export_conditions = None
 
     def get_statuses_config(self) -> Optional[str]:
-        return self.config.get("credit_note_statuses")
+        return self.config.get("credit_note_statuses") or DEFAULT_CREDIT_NOTE_STATUSES
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
