@@ -54,6 +54,7 @@ If `true`, fetches invoices in all statuses. If `false` or omitted, only approve
 #### `credit_note_statuses` (string, optional)
 Comma-separated list of credit note statuses to sync. When set, it is applied only to `credit_notes` stream.
 A credit note is never left `approved` - Precoro marks it `paid` / `partly_paid` on approval - so `approved` doesn't need to be listed.
+On top of these statuses, `credit_notes` only ever fetches credit notes in `Processing` integration status (`integrationStatus=7`), on every pass - already integrated credit notes are never re-pulled.
 Valid values: `open`, `pending`, `approved`, `denied`, `partly_paid`, `paid`, `awaiting_confirmation`, `on_revise`, `canceled`, `pending_receipt`, `approval_review`, `closed`.
 - **Default**: `"partly_paid,paid"`
 - **Example**: `"partly_paid,paid"`

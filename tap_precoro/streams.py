@@ -14,6 +14,9 @@ from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin, AccountSet
 # connector (handled by the hotglue-webhook path now), so the polling job must skip it.
 INTEGRATION_STATUS_WAITING_FOR_CONNECTOR = 8
 
+# Precoro integrationStatus "Processing" - the document is waiting to be exported.
+INTEGRATION_STATUS_PROCESSING = 7
+
 # Invoice/credit-note workflow status "canceled" - a different field from integrationStatus
 # above, both happen to use 8.
 INVOICE_STATUS_CANCELED = 8
@@ -801,6 +804,11 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
         # Param to fetch only creditNote type from invoices endpoints
         params["logicType[]"] = [1,5]
 
+        # Only credit notes in Processing integration status, on every pass: the webhook's
+        # externalId write-back bumps updateDate, so without this the incremental pass re-pulls
+        # already-integrated credit notes and the target creates them a second time
+        params["integrationStatus[]"] = INTEGRATION_STATUS_PROCESSING
+
         # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
             start_date = self.config.get("start_date")
@@ -811,7 +819,6 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
         if getattr(self, "_fetch_processing_only", False):
             params.pop("modifiedSince", None)
             params.pop("status[]", None)
-            params["integrationStatus[]"] = 7
         return params
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
