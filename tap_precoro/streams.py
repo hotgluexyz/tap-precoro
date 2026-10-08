@@ -14,12 +14,23 @@ from tap_precoro.client import PrecoroStream, ExternalIdTwoPassMixin, AccountSet
 # connector (handled by the hotglue-webhook path now), so the polling job must skip it.
 INTEGRATION_STATUS_WAITING_FOR_CONNECTOR = 8
 
+# Precoro integrationStatus "Processing" - the document is waiting to be exported.
+INTEGRATION_STATUS_PROCESSING = 7
+
 # Invoice/credit-note workflow status "canceled" - a different field from integrationStatus
 # above, both happen to use 8.
 INVOICE_STATUS_CANCELED = 8
 
 # Workflow statuses allowed through the Processing catch-up pass (approved, partly_paid, paid).
 PROCESSING_PASS_ALLOWED_STATUSES = {2, 4, 5}
+
+# Invoice logicType values that mean the document is a credit note (credit note from invoice,
+# credit note from scratch). They're exported via the credit_notes stream, never as invoices.
+CREDIT_NOTE_LOGIC_TYPES = {1, 5}
+
+# Credit notes are never left "approved": Precoro marks them paid / partly paid on approval,
+# so these are the statuses to sync when credit_note_statuses isn't set in config.
+DEFAULT_CREDIT_NOTE_STATUSES = "partly_paid,paid"
 
 
 class TaxesStream(PrecoroStream):
@@ -156,6 +167,13 @@ class InvoicesStream(ExternalIdTwoPassMixin, TransactionsStream):
         # Skip canceled invoices (else the processing-status pass re-fetches them forever)
         if row.get("status") == INVOICE_STATUS_CANCELED:
             self.logger.info(f"Invoice with id {row['id']} skipped because status=8 (canceled)")
+            return None
+        # Skip credit notes: /invoices returns them too, but they're synced by the credit_notes
+        # stream - letting them through here exports every credit note a second time as a bill
+        if row.get("logicType") in CREDIT_NOTE_LOGIC_TYPES:
+            self.logger.info(
+                f"Invoice with id {row['id']} skipped because logicType={row.get('logicType')} (credit note)"
+            )
             return None
         # Skip invoices that do not have allowed statuses
         if getattr(self, "_fetch_processing_only", False) and row.get("status") not in PROCESSING_PASS_ALLOWED_STATUSES:
@@ -778,13 +796,18 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
     export_conditions = None
 
     def get_statuses_config(self) -> Optional[str]:
-        return self.config.get("credit_note_statuses")
+        return self.config.get("credit_note_statuses") or DEFAULT_CREDIT_NOTE_STATUSES
 
     def get_url_params(self, context, next_page_token):
         params = super().get_url_params(context, next_page_token)
 
         # Param to fetch only creditNote type from invoices endpoints
         params["logicType[]"] = [1,5]
+
+        # Only credit notes in Processing integration status, on every pass: the webhook's
+        # externalId write-back bumps updateDate, so without this the incremental pass re-pulls
+        # already-integrated credit notes and the target creates them a second time
+        params["integrationStatus[]"] = INTEGRATION_STATUS_PROCESSING
 
         # Second pass: fetch records without externalId (sent_to_external=0)
         if getattr(self, "_fetch_no_external_only", False):
@@ -796,7 +819,6 @@ class CreditNotesStream(ExternalIdTwoPassMixin, TransactionsStream):
         if getattr(self, "_fetch_processing_only", False):
             params.pop("modifiedSince", None)
             params.pop("status[]", None)
-            params["integrationStatus[]"] = 7
         return params
 
     def get_child_context(self, record: dict, context: Optional[dict]) -> dict:
